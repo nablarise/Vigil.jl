@@ -46,7 +46,7 @@ using MyPackageUnitTests
 
 # Parse command line arguments
 output_file = length(ARGS) >= 1 ? abspath(ARGS[1]) : nothing
-format = isnothing(output_file) ? TestAgent.Plain : TestAgent.JSONL
+format = isnothing(output_file) ? Vigil.Plain : Vigil.JSONL
 
 # Display startup message
 if isnothing(output_file)
