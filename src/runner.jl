@@ -7,33 +7,20 @@
 ###############################################################################
 # LOGGING FUNCTIONS
 ###############################################################################
-
-"""
-    _log_jsonl(io::IO, event::String, data::Pair...)
-
-Write a log entry in valid JSONL format.
-Uses JSON.jl to ensure correct formatting (escaping, types, etc.).
-"""
 function _log_jsonl(io::IO, event::String, data::Pair...)
     # Construct the dictionary
     log_entry = Dict{String, Any}(
         "event" => event,
-        "timestamp" => string(now()), # ISO 8601 default via string()
+        "timestamp" => string(now()),
         data...
     )
 
     # Clean serialization via JSON.jl
     JSON.print(io, log_entry)
-    println(io) # Newline for JSONL format
+    println(io)
     flush(io)
 end
 
-"""
-    _log_plain(io::IO, event::String, data::Pair...)
-
-Human-readable plain text logging for interactive terminal use.
-Uses Unicode symbols for visual clarity.
-"""
 function _log_plain(io::IO, event::String, data::Pair...)
     data_dict = Dict(data...)
 
@@ -100,12 +87,6 @@ function _log_plain(io::IO, event::String, data::Pair...)
     flush(io)
 end
 
-"""
-    _log_event(io::IO, format::LogFormat, event::String, data::Pair...)
-
-Dispatch to appropriate formatter based on format type.
-Supports Plain (human-readable) and JSONL (structured) formats.
-"""
 function _log_event(io::IO, format::LogFormat, event::String, data::Pair...)
     if format == Plain
         _log_plain(io, event, data...)
@@ -118,13 +99,6 @@ end
 # ERROR HANDLING
 ###############################################################################
 
-"""
-    _handle_test_error(e::Exception, io::IO, format::LogFormat)
-
-2-tier error response system:
-1. Parse Error → Exit with EXIT_PARSE_ERROR (fatal)
-2. Runtime Error → Log and continue (don't stop watch loop)
-"""
 function _handle_test_error(e::Exception, io::IO, format::LogFormat)
     # Capture full error with stacktrace as string
     error_str = sprint(showerror, e, catch_backtrace())
@@ -151,12 +125,6 @@ end
 # TEST EXECUTION
 ###############################################################################
 
-"""
-    _run_tests_core(test_modules::Vector{Module}, io::IO, format::LogFormat)
-
-Core logic to execute tests and log results.
-Handles test execution, result collection, and error reporting.
-"""
 function _run_tests_core(test_modules::Vector{Module}, io::IO, format::LogFormat)
     _log_event(io, format, "test_run_start")
     start_time = time()
@@ -257,7 +225,7 @@ Main entry point for test watching and execution.
 
 # Example
 ```julia
-using TestAgent
+using Vigil
 using MyPackage
 using MyPackageUnitTests
 
