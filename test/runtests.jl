@@ -109,7 +109,7 @@ end
         @testset "JSONL Format" begin
             # Test that _log_jsonl produces valid JSON
             io = IOBuffer()
-            Vigil._log_jsonl(io, "test_event", "key1" => "value1", "key2" => 42)
+            Vigil._log_jsonl(io, Vigil.TestRunStart, "key1" => "value1", "key2" => 42)
 
             output = String(take!(io))
             lines = split(strip(output), '\n')
@@ -118,7 +118,7 @@ end
 
             # Parse JSON to verify it's valid
             parsed = JSON.parse(lines[1])
-            @test parsed["event"] == "test_event"
+            @test parsed["event"] == "test_run_start"
             @test parsed["key1"] == "value1"
             @test parsed["key2"] == 42
             @test haskey(parsed, "timestamp")
@@ -126,7 +126,7 @@ end
 
         @testset "Plain Format - System Events" begin
             io = IOBuffer()
-            Vigil._log_plain(io, "system", "state" => "idle", "message" => "Waiting...")
+            Vigil._log_plain(io, Vigil.SystemEvent, "state" => "idle", "message" => "Waiting...")
 
             output = String(take!(io))
             @test occursin("⏳", output)
@@ -135,7 +135,7 @@ end
 
         @testset "Plain Format - Test Run Start" begin
             io = IOBuffer()
-            Vigil._log_plain(io, "test_run_start")
+            Vigil._log_plain(io, Vigil.TestRunStart)
 
             output = String(take!(io))
             @test occursin("🔄", output)
@@ -144,7 +144,7 @@ end
 
         @testset "Plain Format - Test Results" begin
             io = IOBuffer()
-            Vigil._log_plain(io, "test_result",
+            Vigil._log_plain(io, Vigil.TestResult,
                 "module" => "TestModule",
                 "status" => "success",
                 "passed" => 5,
@@ -161,7 +161,7 @@ end
 
         @testset "Plain Format - Failed Tests" begin
             io = IOBuffer()
-            Vigil._log_plain(io, "test_result",
+            Vigil._log_plain(io, Vigil.TestResult,
                 "module" => "TestModule",
                 "status" => "failed",
                 "passed" => 3,
@@ -180,7 +180,7 @@ end
         @testset "Plain Format - Test Run End" begin
             # Success case
             io = IOBuffer()
-            Vigil._log_plain(io, "test_run_end",
+            Vigil._log_plain(io, Vigil.TestRunEnd,
                 "status" => "success",
                 "duration" => 1.234
             )
@@ -190,7 +190,7 @@ end
 
             # Failure case
             io = IOBuffer()
-            Vigil._log_plain(io, "test_run_end",
+            Vigil._log_plain(io, Vigil.TestRunEnd,
                 "status" => "failed",
                 "duration" => 2.5
             )
@@ -202,7 +202,7 @@ end
         @testset "Plain Format - Errors" begin
             # Test error
             io = IOBuffer()
-            Vigil._log_plain(io, "test_error",
+            Vigil._log_plain(io, Vigil.TestError,
                 "error" => "Something went wrong"
             )
             output = String(take!(io))
@@ -211,7 +211,7 @@ end
 
             # Critical error
             io = IOBuffer()
-            Vigil._log_plain(io, "critical_error",
+            Vigil._log_plain(io, Vigil.CriticalError,
                 "type" => "parse_error",
                 "action" => "exiting",
                 "error" => "Syntax error"
@@ -225,13 +225,13 @@ end
         @testset "Log Event Dispatch" begin
             # Test that _log_event correctly dispatches to format handlers
             io_jsonl = IOBuffer()
-            Vigil._log_event(io_jsonl, JSONL, "test_event", "key" => "value")
+            Vigil._log_event(io_jsonl, JSONL, Vigil.TestRunStart, "key" => "value")
             jsonl_output = String(take!(io_jsonl))
             @test occursin("\"event\"", jsonl_output)
             @test occursin("\"key\"", jsonl_output)
 
             io_plain = IOBuffer()
-            Vigil._log_event(io_plain, Plain, "system", "message" => "Test")
+            Vigil._log_event(io_plain, Plain, Vigil.SystemEvent, "message" => "Test")
             plain_output = String(take!(io_plain))
             @test occursin("Test", plain_output)
         end

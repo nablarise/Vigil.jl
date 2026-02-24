@@ -5,94 +5,87 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 ###############################################################################
+# EVENT TYPE ENUM
+###############################################################################
+@enum EventType begin
+    SystemEvent
+    TestRunStart
+    TestResult
+    TestRunEnd
+    TestError
+    CriticalError
+end
+
+###############################################################################
 # LOGGING FUNCTIONS
 ###############################################################################
-function _log_jsonl(io::IO, event::String, data::Pair...)
-    # Construct the dictionary
+_event_key(::Val{SystemEvent})   = "system"
+_event_key(::Val{TestRunStart})  = "test_run_start"
+_event_key(::Val{TestResult})    = "test_result"
+_event_key(::Val{TestRunEnd})    = "test_run_end"
+_event_key(::Val{TestError})     = "test_error"
+_event_key(::Val{CriticalError}) = "critical_error"
+
+function _log_jsonl(io::IO, event::EventType, data::Pair...)
     log_entry = Dict{String, Any}(
-        "event" => event,
+        "event"     => _event_key(Val(event)),
         "timestamp" => string(now()),
         data...
     )
-
-    # Clean serialization via JSON.jl
     JSON.print(io, log_entry)
     println(io)
     flush(io)
 end
 
-function _log_plain(io::IO, event::String, data::Pair...)
-    data_dict = Dict(data...)
-
-    if event == "system"
-        # System messages (e.g., "Waiting for changes...")
-        message = get(data_dict, "message", "")
-        state = get(data_dict, "state", "")
-        if state == "idle"
-            println(io, "\n⏳ $message")
-        else
-            println(io, "ℹ️  $message")
-        end
-
-    elseif event == "test_run_start"
-        println(io, "\n🔄 Running tests...")
-
-    elseif event == "test_result"
-        # Test results for a module
-        mod = get(data_dict, "module", "")
-        status = get(data_dict, "status", "")
-        passed = get(data_dict, "passed", 0)
-        failed = get(data_dict, "failed", 0)
-        errored = get(data_dict, "errored", 0)
-        broken = get(data_dict, "broken", 0)
-
-        icon = status == "success" ? "✓" : "✗"
-        println(io, "\n$mod: $icon ($passed passed, $failed failed, $errored errored, $broken broken)")
-
-    elseif event == "test_run_end"
-        # Overall test run summary
-        status = get(data_dict, "status", "")
-        duration = get(data_dict, "duration", 0.0)
-
-        if status == "success"
-            println(io, "\n✅ All tests passed ($(duration)s)")
-        else
-            println(io, "\n❌ Some tests failed ($(duration)s)")
-        end
-
-    elseif event == "test_error"
-        # Runtime test errors
-        error_msg = get(data_dict, "error", "")
-        println(io, "\n⚠️  Test Error:")
-        println(io, error_msg)
-
-    elseif event == "critical_error"
-        # Critical errors (parse, etc.)
-        error_type = get(data_dict, "type", "")
-        action = get(data_dict, "action", "")
-        error_msg = get(data_dict, "error", get(data_dict, "message", ""))
-
-        println(io, "\n🚨 Critical Error ($error_type)")
-        println(io, "Action: $action")
-        println(io, error_msg)
-
-    else
-        # Fallback for unknown events
-        println(io, "Event: $event")
-        for (k, v) in data_dict
-            println(io, "  $k: $v")
-        end
-    end
-
+function _log_plain(io::IO, event::EventType, data::Pair...)
+    _log_plain(io, Val(event), Dict{String,Any}(data...))
     flush(io)
 end
 
-function _log_event(io::IO, format::LogFormat, event::String, data::Pair...)
-    if format == Plain
-        _log_plain(io, event, data...)
-    else
-        _log_jsonl(io, event, data...)
-    end
+function _log_plain(io::IO, ::Val, data::Dict)
+    for (k, v) in data; println(io, "  $k: $v"); end
+end
+
+function _log_plain(io::IO, ::Val{SystemEvent}, data::Dict)
+    msg = get(data, "message", "")
+    get(data, "state", "") == "idle" ? println(io, "\n⏳ $msg") : println(io, "ℹ️  $msg")
+end
+
+function _log_plain(io::IO, ::Val{TestRunStart}, ::Dict)
+    println(io, "\n🔄 Running tests...")
+end
+
+function _log_plain(io::IO, ::Val{TestResult}, data::Dict)
+    mod     = get(data, "module",  "")
+    status  = get(data, "status",  "")
+    passed  = get(data, "passed",  0)
+    failed  = get(data, "failed",  0)
+    errored = get(data, "errored", 0)
+    broken  = get(data, "broken",  0)
+    icon = status == "success" ? "✓" : "✗"
+    println(io, "\n$mod: $icon ($passed passed, $failed failed, $errored errored, $broken broken)")
+end
+
+function _log_plain(io::IO, ::Val{TestRunEnd}, data::Dict)
+    duration = get(data, "duration", 0.0)
+    get(data, "status", "") == "success" ?
+        println(io, "\n✅ All tests passed ($(duration)s)") :
+        println(io, "\n❌ Some tests failed ($(duration)s)")
+end
+
+function _log_plain(io::IO, ::Val{TestError}, data::Dict)
+    println(io, "\n⚠️  Test Error:")
+    println(io, get(data, "error", ""))
+end
+
+function _log_plain(io::IO, ::Val{CriticalError}, data::Dict)
+    println(io, "\n🚨 Critical Error ($(get(data, "type", "")))")
+    println(io, "Action: $(get(data, "action", ""))")
+    println(io, get(data, "error", get(data, "message", "")))
+end
+
+function _log_event(io::IO, format::LogFormat, event::EventType, data::Pair...)
+    format == Plain ? _log_plain(io, event, data...) : _log_jsonl(io, event, data...)
 end
 
 ###############################################################################
@@ -105,7 +98,7 @@ function _handle_test_error(e::Exception, io::IO, format::LogFormat)
 
     # Case 1: Parse Error (Syntax) -> FATAL ERROR -> EXIT
     if e isa Base.Meta.ParseError
-        _log_event(io, format, "critical_error",
+        _log_event(io, format, CriticalError,
             "type" => "parse_error",
             "action" => "exiting",
             "error" => error_str
@@ -114,7 +107,7 @@ function _handle_test_error(e::Exception, io::IO, format::LogFormat)
 
     # Case 2: Standard errors (Test failures, runtime bugs) -> Keep running
     else
-        _log_event(io, format, "test_error",
+        _log_event(io, format, TestError,
             "type" => "runtime_error",
             "error" => error_str
         )
@@ -126,7 +119,7 @@ end
 ###############################################################################
 
 function _run_tests_core(test_modules::Vector{Module}, io::IO, format::LogFormat)
-    _log_event(io, format, "test_run_start")
+    _log_event(io, format, TestRunStart)
     start_time = time()
 
     try
@@ -146,7 +139,7 @@ function _run_tests_core(test_modules::Vector{Module}, io::IO, format::LogFormat
                     exception_caught = true
                     all_passed = false
 
-                    _log_event(io, format, "test_result",
+                    _log_event(io, format, TestResult,
                         "module" => string(mod),
                         "passed" => e.pass,
                         "failed" => e.fail,
@@ -167,7 +160,7 @@ function _run_tests_core(test_modules::Vector{Module}, io::IO, format::LogFormat
                 n_errored = count(r -> r isa Test.Error, ts.results)
                 n_broken = count(r -> r isa Test.Broken, ts.results)
 
-                _log_event(io, format, "test_result",
+                _log_event(io, format, TestResult,
                     "module" => string(mod),
                     "passed" => ts.n_passed,
                     "failed" => n_failed,
@@ -183,7 +176,7 @@ function _run_tests_core(test_modules::Vector{Module}, io::IO, format::LogFormat
         end
 
         duration = round(time() - start_time, digits=3)
-        _log_event(io, format, "test_run_end",
+        _log_event(io, format, TestRunEnd,
             "status" => all_passed ? "success" : "failed",
             "duration" => duration
         )
@@ -192,7 +185,7 @@ function _run_tests_core(test_modules::Vector{Module}, io::IO, format::LogFormat
         _handle_test_error(e, io, format)
     end
 
-    _log_event(io, format, "system", "state" => "idle", "message" => "Waiting for changes...")
+    _log_event(io, format, SystemEvent, "state" => "idle", "message" => "Waiting for changes...")
 end
 
 ###############################################################################
@@ -201,7 +194,7 @@ end
 
 """
     watch_and_run(
-        test_modules::Vector{Module}, 
+        test_modules::Vector{Module},
         track_modules::Vector{Module};
         output_file::Union{String,Nothing}=nothing,
         format::LogFormat=JSONL
@@ -238,7 +231,7 @@ watch_and_run([MyPackageUnitTests], [MyPackage]; format=Plain)
 ```
 """
 function watch_and_run(
-    test_modules::Vector{Module}, 
+    test_modules::Vector{Module},
     track_modules::Vector{Module};
     output_file::Union{String,Nothing}=nothing,
     format::LogFormat=JSONL
@@ -247,10 +240,10 @@ function watch_and_run(
     if !isnothing(output_file)
         touch(output_file)
         open(output_file, "a") do io
-            _log_event(io, format, "system", "message" => "Watcher started. Logs redirected to file.")
+            _log_event(io, format, SystemEvent, "message" => "Watcher started. Logs redirected to file.")
         end
     else
-        _log_event(stdout, format, "system", "message" => "Watcher started. Output to terminal.")
+        _log_event(stdout, format, SystemEvent, "message" => "Watcher started. Output to terminal.")
     end
 
     revise_errored = false
@@ -281,7 +274,7 @@ function watch_and_run(
             # Critical crash in Revise or the watcher itself
             io_target = isnothing(output_file) ? stdout : open(output_file, "a")
             try
-                _log_event(io_target, format, "critical_error", "message" => sprint(showerror, e))
+                _log_event(io_target, format, CriticalError, "message" => sprint(showerror, e))
             finally
                 if !isnothing(output_file)
                     close(io_target)

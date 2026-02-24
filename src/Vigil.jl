@@ -49,5 +49,6 @@ include("runner.jl")
 export watch_and_run
 export EXIT_SUCCESS, EXIT_PARSE_ERROR
 export LogFormat, Plain, JSONL
+export EventType, SystemEvent, TestRunStart, TestResult, TestRunEnd, TestError, CriticalError
 
 end # module Vigil
