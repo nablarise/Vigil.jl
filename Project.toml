@@ -1,0 +1,15 @@
+name = "TestAgent"
+uuid = "8f3b4e5a-1c2d-4e5f-8a9b-0c1d2e3f4a5b"
+authors = ["Nablarise"]
+version = "0.1.0"
+
+[deps]
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[compat]
+julia = "1.6"
+JSON = "0.21, 1"
+Revise = "3"
