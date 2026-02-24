@@ -1,6 +1,6 @@
-name = "TestAgent"
+name = "Vigil"
 uuid = "8f3b4e5a-1c2d-4e5f-8a9b-0c1d2e3f4a5b"
-authors = ["Nablarise"]
+authors = ["Guillaume Marques <guillaume.marques@nablarise.com>"]
 version = "0.1.0"
 
 [deps]

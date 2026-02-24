@@ -4,7 +4,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using TestAgent
+using Vigil
 using Test
 using JSON
 
@@ -69,7 +69,7 @@ end
 # TEST SUITE
 ###############################################################################
 
-@testset "TestAgent.jl" begin
+@testset "Vigil.jl" begin
 
     ###########################################################################
     # BASIC API TESTS (Smoke Tests)
@@ -83,9 +83,9 @@ end
         end
 
         @testset "LogFormat Enum" begin
-            @test isdefined(TestAgent, :LogFormat)
-            @test isdefined(TestAgent, :Plain)
-            @test isdefined(TestAgent, :JSONL)
+            @test isdefined(Vigil, :LogFormat)
+            @test isdefined(Vigil, :Plain)
+            @test isdefined(Vigil, :JSONL)
             @test Plain != JSONL
             @test typeof(Plain) == LogFormat
             @test typeof(JSONL) == LogFormat
@@ -94,9 +94,9 @@ end
         end
 
         @testset "Exports" begin
-            @test isdefined(TestAgent, :watch_and_run)
-            @test isdefined(TestAgent, :EXIT_SUCCESS)
-            @test isdefined(TestAgent, :EXIT_PARSE_ERROR)
+            @test isdefined(Vigil, :watch_and_run)
+            @test isdefined(Vigil, :EXIT_SUCCESS)
+            @test isdefined(Vigil, :EXIT_PARSE_ERROR)
             @test hasmethod(watch_and_run, (Vector{Module}, Vector{Module}))
         end
     end
@@ -109,7 +109,7 @@ end
         @testset "JSONL Format" begin
             # Test that _log_jsonl produces valid JSON
             io = IOBuffer()
-            TestAgent._log_jsonl(io, "test_event", "key1" => "value1", "key2" => 42)
+            Vigil._log_jsonl(io, "test_event", "key1" => "value1", "key2" => 42)
 
             output = String(take!(io))
             lines = split(strip(output), '\n')
@@ -126,7 +126,7 @@ end
 
         @testset "Plain Format - System Events" begin
             io = IOBuffer()
-            TestAgent._log_plain(io, "system", "state" => "idle", "message" => "Waiting...")
+            Vigil._log_plain(io, "system", "state" => "idle", "message" => "Waiting...")
 
             output = String(take!(io))
             @test occursin("⏳", output)
@@ -135,7 +135,7 @@ end
 
         @testset "Plain Format - Test Run Start" begin
             io = IOBuffer()
-            TestAgent._log_plain(io, "test_run_start")
+            Vigil._log_plain(io, "test_run_start")
 
             output = String(take!(io))
             @test occursin("🔄", output)
@@ -144,7 +144,7 @@ end
 
         @testset "Plain Format - Test Results" begin
             io = IOBuffer()
-            TestAgent._log_plain(io, "test_result",
+            Vigil._log_plain(io, "test_result",
                 "module" => "TestModule",
                 "status" => "success",
                 "passed" => 5,
@@ -161,7 +161,7 @@ end
 
         @testset "Plain Format - Failed Tests" begin
             io = IOBuffer()
-            TestAgent._log_plain(io, "test_result",
+            Vigil._log_plain(io, "test_result",
                 "module" => "TestModule",
                 "status" => "failed",
                 "passed" => 3,
@@ -180,7 +180,7 @@ end
         @testset "Plain Format - Test Run End" begin
             # Success case
             io = IOBuffer()
-            TestAgent._log_plain(io, "test_run_end",
+            Vigil._log_plain(io, "test_run_end",
                 "status" => "success",
                 "duration" => 1.234
             )
@@ -190,7 +190,7 @@ end
 
             # Failure case
             io = IOBuffer()
-            TestAgent._log_plain(io, "test_run_end",
+            Vigil._log_plain(io, "test_run_end",
                 "status" => "failed",
                 "duration" => 2.5
             )
@@ -202,7 +202,7 @@ end
         @testset "Plain Format - Errors" begin
             # Test error
             io = IOBuffer()
-            TestAgent._log_plain(io, "test_error",
+            Vigil._log_plain(io, "test_error",
                 "error" => "Something went wrong"
             )
             output = String(take!(io))
@@ -211,7 +211,7 @@ end
 
             # Critical error
             io = IOBuffer()
-            TestAgent._log_plain(io, "critical_error",
+            Vigil._log_plain(io, "critical_error",
                 "type" => "parse_error",
                 "action" => "exiting",
                 "error" => "Syntax error"
@@ -225,13 +225,13 @@ end
         @testset "Log Event Dispatch" begin
             # Test that _log_event correctly dispatches to format handlers
             io_jsonl = IOBuffer()
-            TestAgent._log_event(io_jsonl, JSONL, "test_event", "key" => "value")
+            Vigil._log_event(io_jsonl, JSONL, "test_event", "key" => "value")
             jsonl_output = String(take!(io_jsonl))
             @test occursin("\"event\"", jsonl_output)
             @test occursin("\"key\"", jsonl_output)
 
             io_plain = IOBuffer()
-            TestAgent._log_event(io_plain, Plain, "system", "message" => "Test")
+            Vigil._log_event(io_plain, Plain, "system", "message" => "Test")
             plain_output = String(take!(io_plain))
             @test occursin("Test", plain_output)
         end
@@ -250,10 +250,10 @@ end
             @test_throws ProcessFailedException begin
                 # Run in subprocess to capture exit
                 run(`julia --project=. -e '
-                    using TestAgent, Test
+                    using Vigil, Test
                     io = IOBuffer()
                     e = Meta.ParseError("test")
-                    TestAgent._handle_test_error(e, io, TestAgent.JSONL)
+                    Vigil._handle_test_error(e, io, Vigil.JSONL)
                 '`)
             end
         end
@@ -263,7 +263,7 @@ end
             runtime_error = ErrorException("runtime error")
 
             # Should log error but NOT exit (no exception thrown)
-            TestAgent._handle_test_error(runtime_error, io, JSONL)
+            Vigil._handle_test_error(runtime_error, io, JSONL)
 
             output = String(take!(io))
             @test occursin("test_error", output)
@@ -279,7 +279,7 @@ end
             io = IOBuffer()
             error = ErrorException("test error with context")
 
-            TestAgent._handle_test_error(error, io, JSONL)
+            Vigil._handle_test_error(error, io, JSONL)
 
             output = String(take!(io))
             parsed = JSON.parse(output)
@@ -297,7 +297,7 @@ end
     @testset "Test Execution" begin
         @testset "Passing Tests" begin
             io = IOBuffer()
-            TestAgent._run_tests_core([PassingTests], io, JSONL)
+            Vigil._run_tests_core([PassingTests], io, JSONL)
 
             output = String(take!(io))
             lines = filter(!isempty, split(output, '\n'))
@@ -325,7 +325,7 @@ end
 
         @testset "Failing Tests" begin
             io = IOBuffer()
-            TestAgent._run_tests_core([FailingTests], io, JSONL)
+            Vigil._run_tests_core([FailingTests], io, JSONL)
 
             output = String(take!(io))
             lines = filter(!isempty, split(output, '\n'))
@@ -346,7 +346,7 @@ end
 
         @testset "Error Tests" begin
             io = IOBuffer()
-            TestAgent._run_tests_core([ErrorTests], io, JSONL)
+            Vigil._run_tests_core([ErrorTests], io, JSONL)
 
             output = String(take!(io))
             lines = filter(!isempty, split(output, '\n'))
@@ -362,7 +362,7 @@ end
 
         @testset "Broken Tests" begin
             io = IOBuffer()
-            TestAgent._run_tests_core([BrokenTests], io, JSONL)
+            Vigil._run_tests_core([BrokenTests], io, JSONL)
 
             output = String(take!(io))
             lines = filter(!isempty, split(output, '\n'))
@@ -379,7 +379,7 @@ end
 
         @testset "Multiple Test Modules" begin
             io = IOBuffer()
-            TestAgent._run_tests_core([PassingTests, BrokenTests], io, JSONL)
+            Vigil._run_tests_core([PassingTests, BrokenTests], io, JSONL)
 
             output = String(take!(io))
             lines = filter(!isempty, split(output, '\n'))
@@ -393,7 +393,7 @@ end
         @testset "Duration Measurement" begin
             io = IOBuffer()
             start = time()
-            TestAgent._run_tests_core([PassingTests], io, JSONL)
+            Vigil._run_tests_core([PassingTests], io, JSONL)
             elapsed = time() - start
 
             output = String(take!(io))
@@ -412,7 +412,7 @@ end
         @testset "Plain vs JSONL Output Suppression" begin
             # JSONL should suppress Test.jl output
             io_jsonl = IOBuffer()
-            TestAgent._run_tests_core([PassingTests], io_jsonl, JSONL)
+            Vigil._run_tests_core([PassingTests], io_jsonl, JSONL)
             jsonl_output = String(take!(io_jsonl))
 
             # Should NOT contain Test.jl's "Test Summary:" output
@@ -420,7 +420,7 @@ end
 
             # Plain should allow Test.jl output
             io_plain = IOBuffer()
-            TestAgent._run_tests_core([PassingTests], io_plain, Plain)
+            Vigil._run_tests_core([PassingTests], io_plain, Plain)
             plain_output = String(take!(io_plain))
 
             # Should contain Test.jl's default output
@@ -440,7 +440,7 @@ end
             try
                 # Run tests with file output
                 io = open(output_file, "w")
-                TestAgent._run_tests_core([PassingTests], io, JSONL)
+                Vigil._run_tests_core([PassingTests], io, JSONL)
                 close(io)
 
                 # Verify file was written
@@ -464,11 +464,11 @@ end
         @testset "Format Switching" begin
             # Test that format parameter correctly switches output
             io_jsonl = IOBuffer()
-            TestAgent._run_tests_core([PassingTests], io_jsonl, JSONL)
+            Vigil._run_tests_core([PassingTests], io_jsonl, JSONL)
             jsonl_out = String(take!(io_jsonl))
 
             io_plain = IOBuffer()
-            TestAgent._run_tests_core([PassingTests], io_plain, Plain)
+            Vigil._run_tests_core([PassingTests], io_plain, Plain)
             plain_out = String(take!(io_plain))
 
             # Outputs should be different

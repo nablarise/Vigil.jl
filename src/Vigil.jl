@@ -5,7 +5,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 """
-    TestAgent
+    Vigil
 
 A Julia package for managing test infrastructure with file watching and dual-format logging.
 
@@ -19,7 +19,7 @@ Provides:
 
 # Example
 ```julia
-using TestAgent
+using Vigil
 
 # Run watch loop with file output (JSONL)
 watch_and_run([MyTestModule], [MyPackage]; output_file="test/output.log", format=JSONL)
@@ -28,7 +28,7 @@ watch_and_run([MyTestModule], [MyPackage]; output_file="test/output.log", format
 watch_and_run([MyTestModule], [MyPackage]; format=Plain)
 ```
 """
-module TestAgent
+module Vigil
 
 using Revise, Test, JSON, Dates
 
@@ -50,4 +50,4 @@ export watch_and_run
 export EXIT_SUCCESS, EXIT_PARSE_ERROR
 export LogFormat, Plain, JSONL
 
-end # module TestAgent
+end # module Vigil
