@@ -82,12 +82,6 @@ julia --project=. vigil.jl
 julia --project=. vigil.jl test/output.log
 ```
 
-## If you are an AI Agent (Claude)
-
-If you use Vigil in your project, you need to add the following prompt into your `CLAUDE.md` file.
-
-> Please start the Vigil.jl test watcher in the background by running nohup `julia --project=. vigil.jl test_results.jsonl > vigil_system.log 2>&1 &.` This will start the watcher and output the AI-friendly JSONL results into `test_results.jsonl`. Once you verify the background process has started, we will begin editing the source code. Whenever you make a change, you can just read `test_results.jsonl` to automatically see the latest test results without needing to manually run the test command again.
-
 ## License
 
 This project is licensed under the Mozilla Public License 2.0 (MPL-2.0).
@@ -96,7 +90,8 @@ This project is licensed under the Mozilla Public License 2.0 (MPL-2.0).
 
 > I want to install Vigil, a Julia package for managing test infrastructure, in my current prokject. 
 > Use your bash tools to clone the private repository at git@github.com:nablarise/Vigil.jl.git into a temporary directory like /tmp/vigil_pkg, read the README.md file inside it to find the specific installation instructions.
-> Copy and paste the exact instructions to use Vigil into the CLAUDE.md file in my current working directory for future reference.
+> Copy and paste the exact following instructions to use Vigil into the CLAUDE.md file in my current working directory for future reference :
+> > > Please start the Vigil.jl test watcher in the background by running nohup `julia --project=. vigil.jl test_results.jsonl > vigil_system.log 2>&1 &.` This will start the watcher and output the AI-friendly JSONL results into `test_results.jsonl`. Once you verify the background process has started, we will begin editing the source code. Whenever you make a change, you can just read `test_results.jsonl` to automatically see the latest test results without needing to manually run the test command again.
 > At the end, delete the temporary folder to clean up.
 
 
